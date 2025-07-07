@@ -137,25 +137,25 @@ class PDFProcessor:
                 overlay_canvas.drawString(112, 678, str(data.nom_prenom))
                 logger.info(f"✅ Nom/Prénom: {data.nom_prenom} -> (112, 678)")
             
-            # Point 2: Adresse à (199, 622 )
+            # Point 2: Adresse à (277, 632 )
             if data.adresse:
-                overlay_canvas.drawString(199, 622 , str(data.adresse))
-                logger.info(f"✅ Adresse: {data.adresse} -> (199, 622 )")
+                overlay_canvas.drawString(277, 632 , str(data.adresse))
+                logger.info(f"✅ Adresse: {data.adresse} -> (277, 632 )")
             
-            # Point 3: CP/Ville à (287, 591)
+            # Point 3: CP/Ville à (188, 586)
             if data.cp_ville:
-                overlay_canvas.drawString(287, 591, str(data.cp_ville))
-                logger.info(f"✅ CP/Ville: {data.cp_ville} -> (287, 591)")
+                overlay_canvas.drawString(188, 586, str(data.cp_ville))
+                logger.info(f"✅ CP/Ville: {data.cp_ville} -> (188, 586)")
             
-            # Point 4: Marque/Modèle à (243, 420)
+            # Point 4: Marque/Modèle à (121, 414)
             if data.marque_modele:
-                overlay_canvas.drawString(243, 420, str(data.marque_modele))
-                logger.info(f"✅ Marque/Modèle: {data.marque_modele} -> (243, 420)")
+                overlay_canvas.drawString(121, 414, str(data.marque_modele))
+                logger.info(f"✅ Marque/Modèle: {data.marque_modele} -> (121, 414)")
             
-            # Point 5: Immatriculation à (305, 324)
+            # Point 5: Immatriculation à (241, 318)
             if data.immatriculation:
-                overlay_canvas.drawString(305, 324, str(data.immatriculation))
-                logger.info(f"✅ Immatriculation: {data.immatriculation} -> (305, 324)")
+                overlay_canvas.drawString(241, 318, str(data.immatriculation))
+                logger.info(f"✅ Immatriculation: {data.immatriculation} -> (241, 318)")
             
             
             overlay_canvas.save()
