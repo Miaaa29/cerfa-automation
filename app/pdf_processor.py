@@ -1,163 +1,82 @@
-import io
-import logging
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from PyPDF2 import PdfReader, PdfWriter
-from typing import Optional
+from reportlab.lib.units import mm
+import io
+import logging
 
 logger = logging.getLogger(__name__)
 
 class PDFProcessor:
     def __init__(self):
-        self.page_width = A4[0]
-        self.page_height = A4[1]
+        self.page_width, self.page_height = A4
     
-    def fill_cerfa_13757(self, data, pdf_bytes: bytes):
+    def fill_cerfa(self, pdf_data: bytes, data) -> bytes:
         """
-        Remplit le CERFA 13757 avec les données mappées
+        Remplit le CERFA 13757 avec positionnement précis
         """
         try:
-            # Lire le PDF original
-            pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-            pdf_writer = PdfWriter()
+            logger.info("Génération du PDF avec positionnement optimisé")
             
-            # Créer un overlay avec les données
-            overlay_buffer = self._create_overlay(data)
-            overlay_reader = PdfReader(overlay_buffer)
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=A4)
             
-            # Fusionner chaque page
-            for page_num in range(len(pdf_reader.pages)):
-                page = pdf_reader.pages[page_num]
+            # Position de base (en partant du bas de la page)
+            base_y = self.page_height - 80*mm  # Position du premier champ
+            
+            # SECTION MANDANT (Je soussigné)
+            if data.nom_prenom:
+                # Nom et prénom - position après "Je soussigné(e),"
+                c.setFont("Helvetica", 10)
+                c.drawString(55*mm, base_y, data.nom_prenom)
+            
+            # Adresse complète
+            if data.adresse:
+                # Adresse - ligne "domicilié(e) à :"
+                address_y = base_y - 12*mm
+                c.drawString(45*mm, address_y, data.adresse)
                 
-                # Ajouter l'overlay sur la première page
-                if page_num == 0 and len(overlay_reader.pages) > 0:
-                    page.merge_page(overlay_reader.pages[0])
-                
-                pdf_writer.add_page(page)
+                # Code postal et ville sur la ligne suivante
+                if data.cp_ville:
+                    cp, ville = self.parse_cp_ville(data.cp_ville)
+                    cp_ville_y = address_y - 6*mm
+                    c.drawString(45*mm, cp_ville_y, f"{cp} {ville}")
+                    # Pays à droite
+                    c.drawString(140*mm, cp_ville_y, "France")
             
-            # Générer le PDF final
-            output_buffer = io.BytesIO()
-            pdf_writer.write(output_buffer)
-            output_buffer.seek(0)
+            # SECTION MANDATAIRE (donne mandat à)
+            # Laisser vide car c'est le professionnel qui recevra le mandat
             
-            return output_buffer.getvalue()
+            # SECTION VÉHICULE
+            vehicle_y = base_y - 50*mm  # Position section véhicule
+            
+            if data.marque_modele:
+                # Marque - après "Marque :"
+                c.drawString(70*mm, vehicle_y, data.marque_modele)
+            
+            if data.immatriculation:
+                # Numéro d'immatriculation - après "Numéro d'immatriculation :"
+                immat_y = vehicle_y - 12*mm
+                c.drawString(120*mm, immat_y, data.immatriculation)
+            
+            # Section signature
+            signature_y = base_y - 140*mm
+            
+            # Date par défaut (aujourd'hui)
+            from datetime import datetime
+            today = datetime.now()
+            
+            # "Fait à" et date
+            c.drawString(50*mm, signature_y, "Chartres")  # Exemple de ville
+            c.drawString(140*mm, signature_y, f"{today.strftime('%d/%m/%Y')}")
+            
+            # Finaliser le PDF
+            c.save()
+            buffer.seek(0)
+            return buffer.getvalue()
             
         except Exception as e:
             logger.error(f"Erreur lors de la génération du PDF: {str(e)}")
-            # Fallback: créer un PDF simple
-            return self._create_simple_pdf(data)
-    
-    def _create_overlay(self, data):
-        """
-        Créer un overlay transparent avec les données
-        """
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)
-        
-        # Positions approximatives pour le CERFA 13757
-        # Ces positions peuvent être ajustées selon le PDF réel
-        
-        # Mandant - NOM PRÉNOM
-        if data.nom_prenom:
-            c.setFont("Helvetica", 10)
-            c.drawString(150, 700, data.nom_prenom)  # Position à ajuster
-        
-        # Mandant - Adresse
-        if data.adresse:
-            c.setFont("Helvetica", 10)
-            c.drawString(150, 670, data.adresse)  # Position à ajuster
-        
-        # Mandant - Code postal + Ville
-        if data.cp_ville:
-            c.setFont("Helvetica", 10)
-            cp, ville = self.parse_cp_ville(data.cp_ville)
-            c.drawString(150, 640, cp)  # Code postal
-            c.drawString(250, 640, ville)  # Ville
-        
-        # Véhicule - Marque
-        if data.marque_modele:
-            c.setFont("Helvetica", 10)
-            c.drawString(150, 500, data.marque_modele)  # Position à ajuster
-        
-        # Véhicule - Immatriculation
-        if data.immatriculation:
-            c.setFont("Helvetica", 10)
-            c.drawString(150, 450, data.immatriculation)  # Position à ajuster
-        
-        c.save()
-        buffer.seek(0)
-        return buffer
-    
-    def _create_simple_pdf(self, data):
-        """
-        Créer un PDF simple en cas d'erreur
-        """
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)
-        
-        # Titre
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(50, 750, "CERFA 13757*03 - MANDAT POUR FORMALITÉS D'IMMATRICULATION")
-        
-        # Section Mandant
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, 700, "MANDANT:")
-        
-        c.setFont("Helvetica", 10)
-        y_position = 680
-        
-        if data.nom_prenom:
-            c.drawString(70, y_position, f"NOM, PRÉNOM: {data.nom_prenom}")
-            y_position -= 20
-        
-        if data.adresse:
-            c.drawString(70, y_position, f"Adresse: {data.adresse}")
-            y_position -= 20
-        
-        if data.cp_ville:
-            c.drawString(70, y_position, f"Code postal, Commune: {data.cp_ville}")
-            y_position -= 20
-        
-        # Pays par défaut
-        c.drawString(70, y_position, "Pays: France")
-        y_position -= 40
-        
-        # Section Véhicule
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y_position, "VÉHICULE CONCERNÉ:")
-        y_position -= 20
-        
-        c.setFont("Helvetica", 10)
-        if data.marque_modele:
-            c.drawString(70, y_position, f"Marque: {data.marque_modele}")
-            y_position -= 20
-        
-        if data.immatriculation:
-            c.drawString(70, y_position, f"Numéro d'immatriculation: {data.immatriculation}")
-            y_position -= 20
-        
-        # Section obligation d'assurance
-        y_position -= 20
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(50, y_position, "IMPORTANT:")
-        y_position -= 15
-        c.setFont("Helvetica", 9)
-        c.drawString(50, y_position, "Je suis informé(e) que pour circuler avec ce véhicule")
-        y_position -= 12
-        c.drawString(50, y_position, "je suis dans l'obligation de l'assurer préalablement")
-        y_position -= 12
-        c.drawString(50, y_position, "(articles L. 324-1 et L. 324-2 du code de la route).")
-        
-        # Date et signature
-        y_position -= 40
-        c.setFont("Helvetica", 10)
-        c.drawString(50, y_position, "Fait à: _________________, le: ___/___/______")
-        y_position -= 40
-        c.drawString(50, y_position, "Signature:")
-        
-        c.save()
-        buffer.seek(0)
-        return buffer.getvalue()
+            raise Exception(f"Erreur génération PDF: {str(e)}")
     
     def parse_cp_ville(self, cp_ville: str) -> tuple:
         """
