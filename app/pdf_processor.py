@@ -157,30 +157,6 @@ class PDFProcessor:
                 overlay_canvas.drawString(305, 324, str(data.immatriculation))
                 logger.info(f"✅ Immatriculation: {data.immatriculation} -> (305, 324)")
             
-            # Autres champs si besoin
-            if data.date_naissance:
-                overlay_canvas.drawString(200, 640, str(data.date_naissance))
-                logger.info(f"✅ Date naissance: {data.date_naissance} -> (200, 640)")
-            
-            if data.ville_naissance:
-                overlay_canvas.drawString(200, 600, str(data.ville_naissance))
-                logger.info(f"✅ Ville naissance: {data.ville_naissance} -> (200, 600)")
-            
-            if data.mail:
-                overlay_canvas.drawString(200, 560, str(data.mail))
-                logger.info(f"✅ Mail: {data.mail} -> (200, 560)")
-            
-            if data.telephone:
-                overlay_canvas.drawString(200, 520, str(data.telephone))
-                logger.info(f"✅ Téléphone: {data.telephone} -> (200, 520)")
-            
-            if data.date_1er_immatriculation:
-                overlay_canvas.drawString(200, 480, str(data.date_1er_immatriculation))
-                logger.info(f"✅ Date 1ère immat: {data.date_1er_immatriculation} -> (200, 480)")
-            
-            if data.numero_formule:
-                overlay_canvas.drawString(200, 380, str(data.numero_formule))
-                logger.info(f"✅ Numéro formule: {data.numero_formule} -> (200, 380)")
             
             overlay_canvas.save()
             overlay_buffer.seek(0)
