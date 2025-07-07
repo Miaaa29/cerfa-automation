@@ -15,77 +15,61 @@ class PDFProcessor:
         Remplit le CERFA 13757 avec positionnement précis
         """
         try:
-            logger.info("Génération du PDF avec positionnement optimisé")
+            logger.info("Génération du PDF avec positionnement corrigé")
             
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             
-            # Position de base (en partant du bas de la page)
-            base_y = self.page_height - 80*mm  # Position du premier champ
+            # Coordonnées ajustées pour un meilleur alignement
+            coordinates = {
+                'nom_prenom': (160, 720),      # Après "Je soussigné(e),"
+                'adresse': (125, 698),         # Ligne adresse
+                'cp_ville': (125, 680),        # Code postal + ville
+                'marque': (205, 520),          # Après "Marque :"
+                'immatriculation': (325, 485), # Numéro immatriculation
+                'lieu_signature': (150, 200),  # "Fait à"
+                'date_signature': (350, 200)   # Date
+            }
             
-            # SECTION MANDANT (Je soussigné)
+            # Police et taille
+            c.setFont("Helvetica", 10)
+            c.setFillColorRGB(0, 0, 0)  # Texte noir
+            
+            # Remplir les champs
             if data.nom_prenom:
-                # Nom et prénom - position après "Je soussigné(e),"
-                c.setFont("Helvetica", 10)
-                c.drawString(55*mm, base_y, data.nom_prenom)
+                c.drawString(coordinates['nom_prenom'][0], coordinates['nom_prenom'][1], data.nom_prenom)
             
-            # Adresse complète
             if data.adresse:
-                # Adresse - ligne "domicilié(e) à :"
-                address_y = base_y - 12*mm
-                c.drawString(45*mm, address_y, data.adresse)
-                
-                # Code postal et ville sur la ligne suivante
-                if data.cp_ville:
-                    cp, ville = self.parse_cp_ville(data.cp_ville)
-                    cp_ville_y = address_y - 6*mm
-                    c.drawString(45*mm, cp_ville_y, f"{cp} {ville}")
-                    # Pays à droite
-                    c.drawString(140*mm, cp_ville_y, "France")
+                c.drawString(coordinates['adresse'][0], coordinates['adresse'][1], data.adresse)
             
-            # SECTION MANDATAIRE (donne mandat à)
-            # Laisser vide car c'est le professionnel qui recevra le mandat
-            
-            # SECTION VÉHICULE
-            vehicle_y = base_y - 50*mm  # Position section véhicule
+            if data.cp_ville:
+                cp, ville = self.parse_cp_ville(data.cp_ville)
+                c.drawString(coordinates['cp_ville'][0], coordinates['cp_ville'][1], f"{cp} {ville}")
+                c.drawString(coordinates['cp_ville'][0] + 200, coordinates['cp_ville'][1], "France")
             
             if data.marque_modele:
-                # Marque - après "Marque :"
-                c.drawString(70*mm, vehicle_y, data.marque_modele)
+                c.drawString(coordinates['marque'][0], coordinates['marque'][1], data.marque_modele)
             
             if data.immatriculation:
-                # Numéro d'immatriculation - après "Numéro d'immatriculation :"
-                immat_y = vehicle_y - 12*mm
-                c.drawString(120*mm, immat_y, data.immatriculation)
+                c.drawString(coordinates['immatriculation'][0], coordinates['immatriculation'][1], data.immatriculation)
             
-            # Section signature
-            signature_y = base_y - 140*mm
-            
-            # Date par défaut (aujourd'hui)
+            # Date et lieu
             from datetime import datetime
             today = datetime.now()
+            c.drawString(coordinates['lieu_signature'][0], coordinates['lieu_signature'][1], "Chartres")
+            c.drawString(coordinates['date_signature'][0], coordinates['date_signature'][1], today.strftime('%d/%m/%Y'))
             
-            # "Fait à" et date
-            c.drawString(50*mm, signature_y, "Chartres")  # Exemple de ville
-            c.drawString(140*mm, signature_y, f"{today.strftime('%d/%m/%Y')}")
-            
-            # Finaliser le PDF
             c.save()
             buffer.seek(0)
             return buffer.getvalue()
             
         except Exception as e:
-            logger.error(f"Erreur lors de la génération du PDF: {str(e)}")
+            logger.error(f"Erreur génération PDF: {str(e)}")
             raise Exception(f"Erreur génération PDF: {str(e)}")
     
     def parse_cp_ville(self, cp_ville: str) -> tuple:
-        """
-        Sépare le code postal et la ville
-        Exemple: "75001 Paris" -> ("75001", "Paris")
-        """
         if not cp_ville:
             return "", ""
-        
         parts = cp_ville.split(" ", 1)
         if len(parts) == 2:
             return parts[0], parts[1]
