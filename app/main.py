@@ -36,7 +36,7 @@ class CerfaData(BaseModel):
             ville_naissance=data.get("Ville de naissance"),
             mail=data.get("Mail"),
             telephone=data.get("Telephone"),
-            immatriculation=data.get("Immatriculation "),  # Attention à l'espace
+            immatriculation=data.get("Immatriculation "),
             date_1er_immatriculation=data.get("Date 1er immatriculation"),
             marque_modele=data.get("Marque modele"),
             numero_formule=data.get("Numero de formule")
@@ -57,37 +57,31 @@ async def fill_cerfa(
 ):
     """
     Remplit le CERFA 13757 avec les données reçues de n8n
-    Reçoit: PDF vierge + données JSON
     """
     try:
         logger.info(f"Réception du fichier: {pdf_file.filename}")
         logger.info(f"Données reçues: {data}")
         
-        # Vérifier que c'est un PDF
         if not pdf_file.filename.endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Le fichier doit être un PDF")
         
-        # Lire le PDF
         pdf_bytes = await pdf_file.read()
         logger.info(f"PDF lu: {len(pdf_bytes)} bytes")
         
-        # Parser les données JSON
         try:
             json_data = json.loads(data)
             if isinstance(json_data, list) and len(json_data) > 0:
-                json_data = json_data[0]  # Prendre le premier élément
+                json_data = json_data[0]
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Format JSON invalide")
         
-        # Mapper les données
         cerfa_data = CerfaData.from_n8n_data(json_data)
         logger.info(f"Données mappées: {cerfa_data}")
         
-        # Traiter le PDF
+        # 🔧 LIGNE CORRIGÉE :
         processor = PDFProcessor()
-        filled_pdf_bytes = processor.fill_cerfa_13757(cerfa_data, pdf_bytes)
+        filled_pdf_bytes = processor.fill_cerfa(pdf_bytes, cerfa_data)  # ✅ Nom et ordre corrects
         
-        # Retourner le PDF rempli
         return StreamingResponse(
             io.BytesIO(filled_pdf_bytes),
             media_type="application/pdf",
@@ -100,9 +94,7 @@ async def fill_cerfa(
 
 @app.post("/test-mapping")
 async def test_mapping(raw_data: List[dict]):
-    """
-    Test le mapping des données sans générer le PDF
-    """
+    """Test le mapping des données sans générer le PDF"""
     try:
         if not raw_data or len(raw_data) == 0:
             raise HTTPException(status_code=400, detail="Aucune donnée reçue")
