@@ -58,10 +58,10 @@ class PDFProcessor:
                             }
                             
                             fields_info["fields"].append(field_info)
-                            logger.info(f"  [{i}] {field_name} ({field_type})")
+                            logger.info(f"   📝 Champ {i}: {field_name} ({field_type})")
                             
-                        except Exception as field_error:
-                            logger.warning(f"⚠️ Erreur champ {i}: {field_error}")
+                        except Exception as e:
+                            logger.error(f"❌ Erreur champ {i}: {e}")
                             
                 else:
                     logger.info("❌ Pas de champs dans AcroForm")
@@ -72,124 +72,108 @@ class PDFProcessor:
             
         except Exception as e:
             logger.error(f"❌ Erreur analyse champs: {e}")
-            return {
-                "has_fields": False, 
-                "count": 0, 
-                "fields": [], 
-                "error": str(e)
-            }
+            return {"has_fields": False, "count": 0, "fields": [], "error": str(e)}
     
     def fill_form_fields(self, pdf_bytes, data):
-        """🎯 Remplit les champs de formulaire existants"""
+        """🎯 Remplit les champs natifs du PDF"""
         try:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             writer = PdfWriter()
             
-            # Mapping des champs (à adapter selon les noms réels)
+            # Mapping des données vers les champs du PDF
             field_mapping = {
-                # Données personnelles
-                "nom_prenom": data.nom_prenom or "",
-                "nom": data.nom_prenom or "",
-                "prenom": data.nom_prenom or "",
-                "adresse": data.adresse or "",
-                "cp_ville": data.cp_ville or "",
-                "date_naissance": data.date_naissance or "",
-                "ville_naissance": data.ville_naissance or "",
-                "mail": data.mail or "",
-                "telephone": data.telephone or "",
-                
-                # Données véhicule
-                "immatriculation": data.immatriculation or "",
-                "date_1er_immatriculation": data.date_1er_immatriculation or "",
-                "marque_modele": data.marque_modele or "",
-                "numero_formule": data.numero_formule or "",
-                
-                # Variantes possibles des noms de champs
-                "Nom prenom": data.nom_prenom or "",
-                "Adresse": data.adresse or "",
-                "CP VILLE": data.cp_ville or "",
-                "Date de naissance": data.date_naissance or "",
-                "Ville de naissance": data.ville_naissance or "",
-                "Mail": data.mail or "",
-                "Telephone": data.telephone or "",
-                "Immatriculation": data.immatriculation or "",
-                "Date 1er immatriculation": data.date_1er_immatriculation or "",
-                "Marque modele": data.marque_modele or "",
-                "Numero de formule": data.numero_formule or "",
+                # Vous devrez adapter ces noms selon les vrais noms des champs
+                "nom_prenom": data.nom_prenom,
+                "adresse": data.adresse,
+                "cp_ville": data.cp_ville,
+                "date_naissance": data.date_naissance,
+                "ville_naissance": data.ville_naissance,
+                "mail": data.mail,
+                "telephone": data.telephone,
+                "immatriculation": data.immatriculation,
+                "date_1er_immatriculation": data.date_1er_immatriculation,
+                "marque_modele": data.marque_modele,
+                "numero_formule": data.numero_formule
             }
             
-            # Copier les pages
-            for page_num in range(len(reader.pages)):
-                page = reader.pages[page_num]
-                writer.add_page(page)
-            
             # Remplir les champs
-            if "/AcroForm" in reader.trailer["/Root"]:
-                for page_num in range(len(writer.pages)):
-                    writer.update_page_form_field_values(
-                        writer.pages[page_num], 
-                        field_mapping
-                    )
-                    
-            logger.info("✅ Champs de formulaire remplis")
+            for page in reader.pages:
+                if "/Annots" in page:
+                    for annot in page["/Annots"]:
+                        annotation = annot.get_object()
+                        if "/T" in annotation:
+                            field_name = str(annotation["/T"])
+                            if field_name in field_mapping and field_mapping[field_name]:
+                                annotation.update({"/V": field_mapping[field_name]})
+                
+                writer.add_page(page)
             
             # Générer le PDF
             output = io.BytesIO()
             writer.write(output)
+            
+            logger.info("✅ PDF généré avec champs de formulaire")
             return output.getvalue()
             
         except Exception as e:
             logger.error(f"❌ Erreur remplissage champs: {e}")
-            # Fallback vers la méthode overlay
-            return self.fill_cerfa_overlay(pdf_bytes, data)
+            raise Exception(f"Erreur lors du remplissage des champs: {str(e)}")
     
     def fill_cerfa_overlay(self, pdf_bytes, data):
-        """🎯 Méthode overlay (position fixe) en fallback"""
+        """🎯 Remplit le CERFA avec VOS coordonnées exactes"""
         try:
-            # Positions des champs sur le CERFA (à ajuster selon votre PDF)
-            positions = {
-                "nom_prenom": (95, 710),
-                "adresse": (95, 690),
-                "cp_ville": (95, 670),
-                "date_naissance": (95, 650),
-                "ville_naissance": (95, 630),
-                "mail": (95, 610),
-                "telephone": (95, 590),
-                "immatriculation": (95, 570),
-                "date_1er_immatriculation": (95, 550),
-                "marque_modele": (95, 530),
-                "numero_formule": (95, 510)
-            }
+            logger.info("🎯 Génération du PDF avec overlay - VOS coordonnées")
             
-            # Créer un overlay avec les données
+            # Créer le calque overlay
             overlay_buffer = io.BytesIO()
             overlay_canvas = canvas.Canvas(overlay_buffer, pagesize=A4)
-            
-            # Ajouter les textes
             overlay_canvas.setFont("Helvetica", 10)
             
+            # 🎯 VOS COORDONNÉES EXACTES
             if data.nom_prenom:
-                overlay_canvas.drawString(positions["nom_prenom"][0], positions["nom_prenom"][1], data.nom_prenom)
+                overlay_canvas.drawString(268, 684, data.nom_prenom)
+                logger.info(f"✅ Nom/Prénom: {data.nom_prenom} -> (268, 684)")
+            
             if data.adresse:
-                overlay_canvas.drawString(positions["adresse"][0], positions["adresse"][1], data.adresse)
+                overlay_canvas.drawString(443, 633, data.adresse)
+                logger.info(f"✅ Adresse: {data.adresse} -> (443, 633)")
+            
             if data.cp_ville:
-                overlay_canvas.drawString(positions["cp_ville"][0], positions["cp_ville"][1], data.cp_ville)
-            if data.date_naissance:
-                overlay_canvas.drawString(positions["date_naissance"][0], positions["date_naissance"][1], data.date_naissance)
-            if data.ville_naissance:
-                overlay_canvas.drawString(positions["ville_naissance"][0], positions["ville_naissance"][1], data.ville_naissance)
-            if data.mail:
-                overlay_canvas.drawString(positions["mail"][0], positions["mail"][1], data.mail)
-            if data.telephone:
-                overlay_canvas.drawString(positions["telephone"][0], positions["telephone"][1], data.telephone)
-            if data.immatriculation:
-                overlay_canvas.drawString(positions["immatriculation"][0], positions["immatriculation"][1], data.immatriculation)
-            if data.date_1er_immatriculation:
-                overlay_canvas.drawString(positions["date_1er_immatriculation"][0], positions["date_1er_immatriculation"][1], data.date_1er_immatriculation)
+                overlay_canvas.drawString(287, 591, data.cp_ville)
+                logger.info(f"✅ CP/Ville: {data.cp_ville} -> (287, 591)")
+            
             if data.marque_modele:
-                overlay_canvas.drawString(positions["marque_modele"][0], positions["marque_modele"][1], data.marque_modele)
+                overlay_canvas.drawString(243, 420, data.marque_modele)
+                logger.info(f"✅ Marque/Modèle: {data.marque_modele} -> (243, 420)")
+            
+            if data.immatriculation:
+                overlay_canvas.drawString(305, 324, data.immatriculation)
+                logger.info(f"✅ Immatriculation: {data.immatriculation} -> (305, 324)")
+            
+            # 🎯 AJOUT DES AUTRES CHAMPS (estimés)
+            if data.date_naissance:
+                overlay_canvas.drawString(200, 650, data.date_naissance)
+                logger.info(f"✅ Date naissance: {data.date_naissance} -> (200, 650)")
+            
+            if data.ville_naissance:
+                overlay_canvas.drawString(350, 650, data.ville_naissance)
+                logger.info(f"✅ Ville naissance: {data.ville_naissance} -> (350, 650)")
+            
+            if data.mail:
+                overlay_canvas.drawString(200, 610, data.mail)
+                logger.info(f"✅ Mail: {data.mail} -> (200, 610)")
+            
+            if data.telephone:
+                overlay_canvas.drawString(200, 570, data.telephone)
+                logger.info(f"✅ Téléphone: {data.telephone} -> (200, 570)")
+            
+            if data.date_1er_immatriculation:
+                overlay_canvas.drawString(200, 380, data.date_1er_immatriculation)
+                logger.info(f"✅ Date 1ère immat: {data.date_1er_immatriculation} -> (200, 380)")
+            
             if data.numero_formule:
-                overlay_canvas.drawString(positions["numero_formule"][0], positions["numero_formule"][1], data.numero_formule)
+                overlay_canvas.drawString(200, 340, data.numero_formule)
+                logger.info(f"✅ Numéro formule: {data.numero_formule} -> (200, 340)")
             
             overlay_canvas.save()
             overlay_buffer.seek(0)
@@ -214,7 +198,7 @@ class PDFProcessor:
             output = io.BytesIO()
             writer.write(output)
             
-            logger.info("✅ PDF généré avec méthode overlay")
+            logger.info("✅ PDF généré avec overlay - VOS coordonnées")
             return output.getvalue()
             
         except Exception as e:
@@ -231,7 +215,7 @@ class PDFProcessor:
                 logger.info("🎯 Utilisation des champs de formulaire")
                 return self.fill_form_fields(pdf_bytes, data)
             else:
-                logger.info("🎯 Utilisation de la méthode overlay")
+                logger.info("🎯 Utilisation de la méthode overlay avec VOS coordonnées")
                 return self.fill_cerfa_overlay(pdf_bytes, data)
                 
         except Exception as e:
