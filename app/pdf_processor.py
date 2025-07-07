@@ -132,10 +132,10 @@ class PDFProcessor:
             # VOS COORDONNÉES EXACTES
             overlay_canvas.setFont("Helvetica", 10)
             
-            # Point 1: Nom/Prénom à (47, 674)
+            # Point 1: Nom/Prénom à (112, 678)
             if data.nom_prenom:
-                overlay_canvas.drawString(47, 674, str(data.nom_prenom))
-                logger.info(f"✅ Nom/Prénom: {data.nom_prenom} -> (47, 674)")
+                overlay_canvas.drawString(112, 678, str(data.nom_prenom))
+                logger.info(f"✅ Nom/Prénom: {data.nom_prenom} -> (112, 678)")
             
             # Point 2: Adresse à (199, 622 )
             if data.adresse:
